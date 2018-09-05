@@ -149,13 +149,6 @@ var getNextInterestLend = (lendId) =>
             })
     })
 
-var converTime = (date) =>
-    new Promise((resolve, reject) => {
-
-    })
-
-
-
 var dayAfterSomeMonth = (day, range_time) =>
     new Promise((resolve, reject) => {
         var dayTemp = day.split('/');
@@ -222,8 +215,6 @@ var getInterestNearestOfLend = (lendId) =>
             })
     })
 
-
-
 var getInterestNearestOfLoan = (loanId) =>
     new Promise((resolve, reject) => {
         var month, lendTemp, interestTemp;
@@ -260,60 +251,7 @@ var getInterestNearestOfLoan = (loanId) =>
                 reject(err)
             })
     })
-var getTotalLendMoneyToHost = (loanId) =>
-    new Promise((resolve, reject) => {
-        var total = 0;
-        loan.findById(loanId)
-            .then(loan => {
-                console.log(loan)
-                resolve({ loan: loan.amount })
-            })
-            .catch(err => {
-                reject(err)
-            })
-    });
-var getTotalMoneyReceive = (loanId, investorId) =>
-    new Promise((resolve, reject) => {
-        var totalMoney = 0;
-        lend.findOne({ 'where': { 'investorId': investorId, 'loanId': loanId } })
-            .then(lend => {
-                return interest.find({ 'where': { 'lendingId': lend.id, 'status': 1 } })
-            })
-            .then(moneyInterests => {
-                moneyInterests.forEach(interest => {
-                    totalMoney += interest.money;
-                })
-                resolve({ total: totalMoney })
-            })
-            .catch(err => {
-                reject(err)
-            })
 
-    })
-var getListInterestOfLoan = (loanId) =>
-    new Promise((resolve, reject) => {
-
-    })
-var getTotalMoneyMustPaid = (loanId) =>
-    new Promise((resolve, reject) => {
-        var totalMoney = 0;
-        lend.find({ where: { loanId: loanId } })
-            .then(lends => {
-                var promises = [];
-                lends.forEach(lend => {
-                    promises.push(getMoneyWillReceive(lend.id)
-                        .then(result => {
-                            totalMoney += result.total;
-                        })
-                    )
-                })
-                Q.all(() => {
-                    resolve({ total: totalMoney })
-                })
-
-            })
-            .catch(err => { reject(err) })
-    })
 var getMoneyWillReceive = (lendId) =>
     new Promise((resolve, reject) => {
         var totalMoney = 0;
@@ -387,7 +325,6 @@ var checkToken = (token) =>
             })
     })
 
-
 var convertPackage = (listPackage) =>
     new Promise((resolve, reject) => {
         var result = [];
@@ -400,6 +337,7 @@ var convertPackage = (listPackage) =>
         })
         resolve(result)
     })
+
 var reCallAllMoneyOfLoan = (loanId) =>
     new Promise((resolve, reject) => {
         var hostTemp;
@@ -535,7 +473,6 @@ var updateFullLoan = (loanId) =>
             })
             .then(() => {
                 lendTemps.forEach(lendItem => {
-                    totalMoneyLoan = parseFloat(((totalMoneyLoan * 1000000 + lendItem.amount * 1000000) / 1000000).toFixed(2))
                     console.log('totalMoney ', totalMoneyLoan)
                     let rate;
                     var money = lendItem.amount;
@@ -546,8 +483,10 @@ var updateFullLoan = (loanId) =>
                     } else {
                         rate = 15
                     }
-                    //tao cac interest
 
+                    totalMoneyLoan = parseFloat(((totalMoneyLoan * 1000000 + lendItem.amount*(1+rate/100) * 1000000) / 1000000).toFixed(2))
+
+                    //tao cac interest
                     var range_time = loanTemp.range_time;
                     for (var j = 1; j <= range_time; j++) {
                         let day, interestTemp;
@@ -564,7 +503,7 @@ var updateFullLoan = (loanId) =>
                                         lendingId: lendItem.id,
                                         status: 0
                                     }, err => {
-                                        if(err){
+                                        if (err) {
                                             console.log('error save interest_lend')
                                         }
                                     })
@@ -577,7 +516,26 @@ var updateFullLoan = (loanId) =>
                 return Q.all(promisesInterest);
             })
             .then(() => {
-                
+                console.log('totalmoneyloan' , totalMoneyLoan)
+                var promises_interest_loan = [];
+                var date_interest_loan;
+                for (let i = 1; i <= loanTemp.range_time; i++) {
+                    promises_interest_loan.push(dayAfterSomeMonth(loanTemp.start_time, i)
+                        .then(result => {
+                            date_interest_loan = result.result;
+                            interest_loan.create({
+                                status: 0,
+                                money: parseFloat((totalMoneyLoan / loanTemp.range_time).toFixed(2)),
+                                rate: parseFloat((((totalMoneyLoan - loanTemp.amount) / loanTemp.amount) * 100).toFixed(2)),
+                                date: date_interest_loan,
+                                loanId : loanTemp.id
+                            })
+                        })
+                    )
+                }
+                return Q.all(promises_interest_loan)
+            })
+            .then(() => {
                 return host.findById(loanTemp.hostId)
             })
             .then(host => {

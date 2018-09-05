@@ -904,7 +904,8 @@ module.exports = (app) => {
         var pro2 = lend.destroyAll();
         var pro3 = loan.destroyAll();
         var pro4 = pack.destroyAll();
-        var promises = { pro1, pro2, pro3, pro4 }
+        var pro5 = interst_loan.destroyAll();
+        var promises = { pro1, pro2, pro3, pro4, pro5 }
         Promise.all(promises)
             .then(result => {
                 res.json(result)
